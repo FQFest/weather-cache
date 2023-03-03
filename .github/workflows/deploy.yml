@@ -35,7 +35,7 @@ jobs:
           gcloud
           functions
           deploy
-          shorty
+          weather-cache
           --gen2
           --region=us-central1
           --source=.
@@ -46,6 +46,6 @@ jobs:
           --max-instances=5
           --project=fqfest
           --set-build-env-vars=GOFLAGS=-mod=mod
-          --set-env-vars=OPEN_WEATHER_API_KEY="${{secrets.OPEN_WEATHER_API_KEY}}"
+          --set-env-vars=OPEN_WEATHER_API_KEY="${{secrets.OPEN_WEATHER_API_KEY}},GCP_PROJECT_ID=fqfest"
       - id: "trigger-url"
         run: 'echo "${{ steps.deploy.outputs.url }}"'
