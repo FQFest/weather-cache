@@ -26,7 +26,7 @@ type (
 	}
 
 	store interface {
-		UpdateWeather(ctx context.Context, data []byte) error
+		UpdateWeather(ctx context.Context, data string) error
 	}
 )
 
@@ -85,7 +85,14 @@ func (a *App) handleUpdateWeather() http.HandlerFunc {
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
-		err = a.store.UpdateWeather(r.Context(), data)
+
+		err = a.store.UpdateWeather(
+			r.Context(),
+			// TODO: Should we just write JSON directly, or unmarshal/marshal and store the weather struct?
+			// That seems superflous since we're just going to reserialize the data back to the client.
+			// Unlessss..we use the realtime clients. TBC..
+			string(data),
+		)
 		if err != nil {
 			a.log.Printf("updateWeather: %s", err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
