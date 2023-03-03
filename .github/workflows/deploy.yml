@@ -1,17 +1,22 @@
 name: Deploy
 
 on:
+  # Temp add this to test the workflow
+  push:
+    branches: [1-make-proxy-for-weather-data]
   workflow_run:
     workflows: ["Lint", "Test"]
     branches: [main]
     types:
       - completed
   workflow_dispatch:
-  # Temp add this to test the workflow
-  push:
-    branches: [1-make-proxy-for-weather-data]
 
 jobs:
+  check-event:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ********* ${{ github.event.workflow_run }} ***********
+
   build-deploy-cloud-function:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
