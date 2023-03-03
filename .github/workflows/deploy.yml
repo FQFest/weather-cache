@@ -18,7 +18,8 @@ jobs:
       - run: echo ********* ${{ github.event.workflow_run }} ***********
 
   build-deploy-cloud-function:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # TODO: Put this back
+    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: "read"
       id-token: "write"
