@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/FQFest/weathercache/firestore"
 	"github.com/FQFest/weathercache/weather"
@@ -27,6 +28,7 @@ type (
 
 	store interface {
 		UpdateWeather(ctx context.Context, data string) error
+		GetCurWeather(ctx context.Context, zipCode string) (string, error)
 	}
 )
 
@@ -61,7 +63,8 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Trigger weather update
 		a.handleUpdateWeather()(w, r)
 		return
-
+	case http.MethodGet:
+		a.handleGetWeather()(w, r)
 	default:
 		http.Error(w, fmt.Sprintf("method %q not allowed", r.Method), http.StatusMethodNotAllowed)
 	}
@@ -108,5 +111,29 @@ func (a *App) handleUpdateWeather() http.HandlerFunc {
 		}
 		fmt.Printf("Current Weather:\n%+v", curWeather)
 		// TODO ^^^ Chunk for debugging delete later
+	}
+}
+
+func (a *App) handleGetWeather() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Hard code to French Quarter zip
+		curJson, err := a.store.GetCurWeather(r.Context(), "70117")
+		if err != nil {
+			if err == firestore.ErrNotFound {
+				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+				return
+			}
+			a.log.Printf("getCurWeather: %s", err.Error())
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		dataR := strings.NewReader(curJson)
+		_, err = dataR.WriteTo(w)
+		if err != nil {
+			a.log.Printf("response writeTo: %s", err.Error())
+		}
 	}
 }
