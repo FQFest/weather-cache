@@ -5,8 +5,7 @@ on:
   push:
     branches: [1-make-proxy-for-weather-data]
   workflow_run:
-    workflows: ["Lint", "Test"]
-    branches: [main]
+    workflows: ["Test"]
     types:
       - completed
   workflow_dispatch:
@@ -46,7 +45,7 @@ jobs:
           --runtime=go119
           --trigger-http
           --allow-unauthenticated
-          --entry-point=ServeHTTP
+          --entry-point=EntryPoint
           --max-instances=5
           --project=fqfest
           --set-build-env-vars=GOFLAGS=-mod=mod

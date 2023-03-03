@@ -11,6 +11,7 @@ import (
 
 	"github.com/FQFest/weathercache/firestore"
 	"github.com/FQFest/weathercache/weather"
+	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
 
 type (
@@ -28,6 +29,15 @@ type (
 		UpdateWeather(ctx context.Context, data []byte) error
 	}
 )
+
+func init() {
+	// Register an HTTP function with the Functions Framework
+	// This handler name maps to the entry point name in the Google Cloud Function platform.
+	// https://cloud.google.com/functions/docs/writing/write-http-functions
+	functions.HTTP("EntryPoint", func(w http.ResponseWriter, r *http.Request) {
+		New().ServeHTTP(w, r)
+	})
+}
 
 // New creates a new App instance.
 func New() *App {
