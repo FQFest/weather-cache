@@ -49,6 +49,8 @@ func New(ctx context.Context, projectID string) (*Store, error) {
 func (s *Store) UpdateWeather(ctx context.Context, dataJSON string) error {
 	// Hard coding the document ID to the French Quarter Zip Code. We can get this from the request if necessary, but keeping it simple for now
 	docID := "70117"
+	// Firestore Documents are maps
+	// https://firebase.google.com/docs/firestore/manage-data/add-data#data_types
 	doc := jsonDoc{"json": dataJSON}
 
 	_, err := s.client.Collection("weather").Doc(docID).Set(ctx, doc)
