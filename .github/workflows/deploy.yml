@@ -6,14 +6,20 @@ on:
     branches: [main]
   workflow_run:
     workflows: ["Test"]
-    types:
-      - completed
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug
+        run: |
+          echo "GITHUB_EVENT_NAME: ${{ github.event_name }}"
+          echo "GITHUB_EVENT_PATH: ${{ github.event.workflow_run.conclusion }}"
   build-deploy-cloud-function:
-    # TODO: Put this back
-    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: "read"
       id-token: "write"
