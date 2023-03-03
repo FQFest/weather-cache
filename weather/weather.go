@@ -100,8 +100,6 @@ func (c *client) Fetch(ctx context.Context) (io.ReadCloser, error) {
 		return resp.Body, err
 	}
 
-	defer resp.Body.Close()
-
 	if resp.StatusCode >= 400 {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
