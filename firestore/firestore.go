@@ -78,6 +78,7 @@ func inGCP() bool {
 	return len(os.Getenv("K_REVISION")) > 0
 }
 
+// GetCurWeather retrieves the current weather data from the store as a JSON string.
 func (s *Store) GetCurWeather(ctx context.Context, zipCode string) (string, error) {
 	docSnap, err := s.client.Collection(s.collName).Doc(zipCode).Get(ctx)
 	if err != nil && status.Code(err) != codes.NotFound {
