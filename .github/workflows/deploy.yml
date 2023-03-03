@@ -7,6 +7,9 @@ on:
     types:
       - completed
   workflow_dispatch:
+  # Temp add this to test the workflow
+  push:
+    branches: [1-make-proxy-for-weather-data]
 
 jobs:
   build-deploy-cloud-function:
