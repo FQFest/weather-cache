@@ -2,7 +2,6 @@ package weathercache
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -102,15 +101,7 @@ func (a *App) handleUpdateWeather() http.HandlerFunc {
 			return
 		}
 
-		// TODO: Chunk for debugging delete later
-		var curWeather weather.Current
-		err = json.Unmarshal(data, &curWeather)
-		if err != nil {
-			a.log.Panicf("decode: %s", err)
-			return
-		}
-		fmt.Printf("Current Weather:\n%+v", curWeather)
-		// TODO ^^^ Chunk for debugging delete later
+		a.log.Println("Weather updated.")
 	}
 }
 
