@@ -2,8 +2,8 @@
 package weather
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -81,13 +81,12 @@ func New() *client {
 }
 
 // Fetch fetches the current weather from the OpenWeather API.
-func (c *client) Fetch(ctx context.Context) (Current, error) {
-	var curWeather Current
+func (c *client) Fetch(ctx context.Context) (io.ReadCloser, error) {
 
 	endpoint := c.apiBase + "/weather"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return curWeather, fmt.Errorf("NewRequestWithContext %w", err)
+		return io.NopCloser(bytes.NewReader([]byte{})), fmt.Errorf("NewRequestWithContext %w", err)
 	}
 
 	q := req.URL.Query()
@@ -98,7 +97,7 @@ func (c *client) Fetch(ctx context.Context) (Current, error) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return curWeather, err
+		return resp.Body, err
 	}
 
 	defer resp.Body.Close()
@@ -106,16 +105,15 @@ func (c *client) Fetch(ctx context.Context) (Current, error) {
 	if resp.StatusCode >= 400 {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return curWeather, fmt.Errorf("body ReadAll: %w", err)
+			return resp.Body, fmt.Errorf("body ReadAll: %w", err)
 		}
 
-		return curWeather, fmt.Errorf("could not get current weather\nStatusCode: %d\nBody: %s", resp.StatusCode, string(body))
-	}
-	d := json.NewDecoder(resp.Body)
-	err = d.Decode(&curWeather)
-	if err != nil {
-		return curWeather, err
+		return resp.Body, fmt.Errorf("could not get current weather\nStatusCode: %d\nBody: %s", resp.StatusCode, string(body))
 	}
 
-	return curWeather, nil
+	if err != nil {
+		return resp.Body, err
+	}
+
+	return resp.Body, nil
 }
