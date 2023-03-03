@@ -12,11 +12,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  check-event:
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo ********* ${{ github.event.workflow_run }} ***********
-
   build-deploy-cloud-function:
     # TODO: Put this back
     # if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -51,7 +46,7 @@ jobs:
           --runtime=go119
           --trigger-http
           --allow-unauthenticated
-          --entry-point=ServeFunction
+          --entry-point=ServeHTTP
           --max-instances=5
           --project=fqfest
           --set-build-env-vars=GOFLAGS=-mod=mod
