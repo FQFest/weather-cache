@@ -1,16 +1,19 @@
 name: Deploy
 
 on:
-  workflow_run:
-    workflows: ["Lint", "Test"]
+  # Temp add this to test the workflow
+  push:
     branches: [main]
+  workflow_run:
+    workflows: ["Test"]
     types:
       - completed
   workflow_dispatch:
 
 jobs:
   build-deploy-cloud-function:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # TODO: Put this back
+    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: "read"
       id-token: "write"
@@ -35,17 +38,14 @@ jobs:
           gcloud
           functions
           deploy
-          shorty
+          weather-cache
           --gen2
           --region=us-central1
           --source=.
           --runtime=go119
           --trigger-http
-          --allow-unauthenticated
-          --entry-point=ServeFunction
+          --entry-point=EntryPoint
           --max-instances=5
           --project=fqfest
           --set-build-env-vars=GOFLAGS=-mod=mod
-          --set-env-vars=OPEN_WEATHER_API_KEY="${{secrets.OPEN_WEATHER_API_KEY}}"
-      - id: "trigger-url"
-        run: 'echo "${{ steps.deploy.outputs.url }}"'
+          --set-env-vars=OPEN_WEATHER_API_KEY="${{secrets.OPEN_WEATHER_API_KEY}},GCP_PROJECT_ID=fqfest"
