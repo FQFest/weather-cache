@@ -3,7 +3,7 @@ name: Deploy
 on:
   # Temp add this to test the workflow
   push:
-    branches: [1-make-proxy-for-weather-data]
+    branches: [main]
   workflow_run:
     workflows: ["Test"]
     types:
