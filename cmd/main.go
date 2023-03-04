@@ -11,7 +11,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	if err := funcframework.RegisterHTTPFunctionContext(ctx, "/", weathercache.New().ServeHTTP); err != nil {
+	if err := funcframework.RegisterHTTPFunctionContext(ctx, "/", weathercache.NewServer().ServeHTTP); err != nil {
 		log.Fatalf("funcframework.RegisterHTTPFunctionContext: %v\n", err)
 	}
 
