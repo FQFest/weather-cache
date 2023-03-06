@@ -12,6 +12,7 @@ import (
 	"github.com/FQFest/weathercache/firestore"
 	"github.com/FQFest/weathercache/weather"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
+	"github.com/rs/cors"
 )
 
 type (
@@ -35,9 +36,7 @@ func init() {
 	// Register an HTTP function with the Functions Framework
 	// This handler name maps to the entry point name in the Google Cloud Function platform.
 	// https://cloud.google.com/functions/docs/writing/write-http-functions
-	functions.HTTP("EntryPoint", func(w http.ResponseWriter, r *http.Request) {
-		New().ServeHTTP(w, r)
-	})
+	functions.HTTP("EntryPoint", NewServer().ServeHTTP)
 }
 
 // New creates a new App instance.
@@ -53,6 +52,15 @@ func New() *App {
 		store:         store,
 		weatherClient: wClient,
 	}
+}
+
+func NewServer() http.Handler {
+	app := New()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", app.ServeHTTP)
+	// TODO: Only Allow necessary origins
+	// https://ionicframework.com/docs/troubleshooting/cors#capacitor
+	return cors.AllowAll().Handler(mux)
 }
 
 // ServeHTTP is the entry point to the HTTP-triggered Cloud Function.
