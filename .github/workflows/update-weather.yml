@@ -11,7 +11,7 @@ on:
     #         │  │ │ │ │
     #         │  │ │ │ │
     #         *  * * * *
-    - cron: "*/15 * * * *" # Every 15 min https://crontab.guru/
+    - cron: "*/30 * * * *" # Every 30 min https://crontab.guru/
 jobs:
   trigger-update:
     permissions:
