@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/FQFest/weathercache/firestore"
+	"github.com/FQFest/weathercache/memstore"
 	"github.com/rs/cors"
 )
 
@@ -111,7 +112,7 @@ func (a *App) handleGetWeather() http.HandlerFunc {
 		// Hard code to French Quarter zip
 		curJson, err := a.store.GetCurWeather(r.Context(), "70117")
 		if err != nil {
-			if err == firestore.ErrNotFound {
+			if err == firestore.ErrNotFound || err == memstore.ErrNotFound {
 				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 				return
 			}
