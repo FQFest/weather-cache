@@ -1,6 +1,6 @@
 service: weather-cache
 
-runtime: go121
+runtime: go122
 
 instance_class: B1
 
