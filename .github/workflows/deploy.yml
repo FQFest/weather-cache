@@ -10,6 +10,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Cancel any existing deployments so only latest one is deployed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   debug:
     runs-on: ubuntu-latest
@@ -18,7 +23,7 @@ jobs:
         run: |
           echo "GITHUB_EVENT_NAME: ${{ github.event_name }}"
           echo "GITHUB_EVENT_PATH: ${{ github.event.workflow_run.conclusion }}"
-  build-deploy-cloud-function:
+  build-deploy-to-app-engine:
     # TODO: Fix condition to run on successful tests run
     # if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
@@ -28,31 +33,28 @@ jobs:
     environment: production
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - id: "auth"
-        uses: "google-github-actions/auth@v0"
+        uses: "google-github-actions/auth@v2"
         with:
           credentials_json: "${{ secrets.GCP_SA_CREDS_JSON }}"
 
-      # Workaround to support Gen2 Cloud Functions
-      # https://github.com/google-github-actions/deploy-cloud-functions/issues/304
-      - name: "Set up Cloud SDK"
-        uses: "google-github-actions/setup-gcloud@v0"
+      - name: 🏗 App Version
+        # Ex version: "20231213-commit-643ef27"
+        run: |
+          echo "GIT_HEAD=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "APP_VERSION=$( date '+%Y%m%d' )-commit-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - id: "deploy"
-        run: >
-          gcloud
-          functions
-          deploy
-          weather-cache
-          --gen2
-          --region=us-central1
-          --source=.
-          --runtime=go119
-          --trigger-http
-          --entry-point=EntryPoint
-          --max-instances=5
-          --project=fqfest
-          --set-build-env-vars=GOFLAGS=-mod=mod
-          --set-env-vars=OPEN_WEATHER_API_KEY="${{secrets.OPEN_WEATHER_API_KEY}},GCP_PROJECT_ID=fqfest"
+        uses: "google-github-actions/deploy-appengine@v2"
+        with:
+          project_id: "${{ secrets.GCP_PROJECT_ID}}"
+          version: "${{ env.APP_VERSION }}"
+          deliverables: "app.yaml"
+          promote: true
+          build_env_vars: |-
+            GOFLAGS=-mod=mod
+          env_vars: |-
+            PORT=8080
+            OPEN_WEATHER_API_KEY=${{secrets.OPEN_WEATHER_API_KEY}}

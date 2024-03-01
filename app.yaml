@@ -1,0 +1,17 @@
+service: weather-cache
+
+runtime: go122
+
+instance_class: B1
+
+main: ./cmd
+
+basic_scaling:
+  max_instances: 4
+  idle_timeout: 3m
+
+handlers:
+  - url: /.*
+    script: auto
+    secure: always
+    redirect_http_response_code: 301
