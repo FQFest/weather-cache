@@ -66,6 +66,25 @@ func NewServer(app *App) http.Handler {
 	return cors.AllowAll().Handler(mux)
 }
 
+// PreFetch triggers the initial fetch of weather data.
+func (a App) PreFetch() error {
+	// Trigger weather update
+	curWeatherRdr, err := a.weatherClient.Fetch(context.Background())
+	if err != nil {
+		return fmt.Errorf("weatherClient.Fetch: %w", err)
+	}
+	defer curWeatherRdr.Close()
+
+	data, err := io.ReadAll(curWeatherRdr)
+	if err != nil {
+		return fmt.Errorf("weather readAll: %w", err)
+	}
+	if err := a.store.UpdateWeather(context.Background(), string(data)); err != nil {
+		return fmt.Errorf("store.UpdateWeather: %w", err)
+	}
+	return nil
+}
+
 // ServeHTTP is the entry point to the HTTP-triggered Cloud Function.
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {

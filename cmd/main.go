@@ -8,21 +8,34 @@ import (
 
 	wc "github.com/FQFest/weathercache"
 	"github.com/FQFest/weathercache/firestore"
+	"github.com/FQFest/weathercache/memstore"
 	"github.com/FQFest/weathercache/weather"
 )
 
 func main() {
-	wClient := weather.New()
-	store, err := firestore.New(context.Background(), os.Getenv("GCP_PROJECT_ID"))
-	if err != nil {
-		log.Fatalf("firestore.New: %s", err.Error())
+	store := memstore.New()
+	storeOption := wc.WithStore(store)
+
+	useMemStore := os.Getenv("USE_MEM_STORE") == "true"
+	if !useMemStore {
+		store, err := firestore.New(context.Background(), os.Getenv("GCP_PROJECT_ID"))
+		if err != nil {
+			log.Fatalf("firestore.New: %s", err.Error())
+		}
+		storeOption = wc.WithStore(store)
 	}
 
+	wClient := weather.New()
 	app := wc.New(
-		wc.WithStore(store),
+		storeOption,
 		wc.WithWeatherClient(wClient),
 	)
-	srv := wc.NewServer(app)
+
+	if useMemStore {
+		if err := app.PreFetch(); err != nil {
+			log.Fatalf("app.PreFetch: %s", err.Error())
+		}
+	}
 
 	port := "9876"
 	if envPort := os.Getenv("PORT"); envPort != "" {
@@ -30,7 +43,7 @@ func main() {
 	}
 
 	log.Printf("server starting on port: %s...", port)
-	if err := http.ListenAndServe(":"+port, srv); err != nil {
+	if err := http.ListenAndServe(":"+port, wc.NewServer(app)); err != nil {
 		log.Fatalf("http server: %s", err.Error())
 	}
 }
