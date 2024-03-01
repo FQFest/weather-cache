@@ -6,18 +6,15 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/FQFest/weathercache/firestore"
-	"github.com/FQFest/weathercache/weather"
-	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"github.com/rs/cors"
 )
 
 type (
 	App struct {
-		log           log.Logger
+		log           *log.Logger
 		store         store
 		weatherClient fetcher
 	}
@@ -32,30 +29,35 @@ type (
 	}
 )
 
-func init() {
-	// Register an HTTP function with the Functions Framework
-	// This handler name maps to the entry point name in the Google Cloud Function platform.
-	// https://cloud.google.com/functions/docs/writing/write-http-functions
-	functions.HTTP("EntryPoint", NewServer().ServeHTTP)
+type Option func(*App)
+
+func WithStore(s store) Option {
+	return func(a *App) {
+		a.store = s
+	}
+}
+
+func WithWeatherClient(w fetcher) Option {
+	return func(a *App) {
+		a.weatherClient = w
+	}
 }
 
 // New creates a new App instance.
-func New() *App {
-	wClient := weather.New()
-	store, err := firestore.New(context.Background(), os.Getenv("GCP_PROJECT_ID"))
-	if err != nil {
-		log.Fatalf("firestore new: %s", err.Error())
+func New(opts ...Option) *App {
+	app := &App{}
+	for _, opt := range opts {
+		opt(app)
 	}
 
-	return &App{
-		log:           *log.Default(),
-		store:         store,
-		weatherClient: wClient,
+	if app.log == nil {
+		app.log = log.Default()
 	}
+
+	return app
 }
 
-func NewServer() http.Handler {
-	app := New()
+func NewServer(app *App) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", app.ServeHTTP)
 	// TODO: Only Allow necessary origins
@@ -87,8 +89,6 @@ func (a *App) handleUpdateWeather() http.HandlerFunc {
 		}
 		defer curWeatherRdr.Close()
 
-		// TODO: Write current weather to Firestore
-		// https://firebase.google.com/docs/firestore/manage-data/add-data#go
 		data, err := io.ReadAll(curWeatherRdr)
 		if err != nil {
 			a.log.Printf("weather readAll: %s", err.Error())
@@ -96,14 +96,7 @@ func (a *App) handleUpdateWeather() http.HandlerFunc {
 			return
 		}
 
-		err = a.store.UpdateWeather(
-			r.Context(),
-			// TODO: Should we just write JSON directly, or unmarshal/marshal and store the weather struct?
-			// That seems superflous since we're just going to reserialize the data back to the client.
-			// Unlessss..we use the realtime clients. TBC..
-			string(data),
-		)
-		if err != nil {
+		if err := a.store.UpdateWeather(r.Context(), string(data)); err != nil {
 			a.log.Printf("updateWeather: %s", err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return

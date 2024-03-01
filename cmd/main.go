@@ -3,26 +3,34 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 
-	"github.com/FQFest/weathercache"
-	"github.com/GoogleCloudPlatform/functions-framework-go/funcframework"
+	wc "github.com/FQFest/weathercache"
+	"github.com/FQFest/weathercache/firestore"
+	"github.com/FQFest/weathercache/weather"
 )
 
 func main() {
-	ctx := context.Background()
-	if err := funcframework.RegisterHTTPFunctionContext(ctx, "/", weathercache.NewServer().ServeHTTP); err != nil {
-		log.Fatalf("funcframework.RegisterHTTPFunctionContext: %v\n", err)
+	wClient := weather.New()
+	store, err := firestore.New(context.Background(), os.Getenv("GCP_PROJECT_ID"))
+	if err != nil {
+		log.Fatalf("firestore.New: %s", err.Error())
 	}
 
-	// Use PORT environment variable, or default to 9876.
+	app := wc.New(
+		wc.WithStore(store),
+		wc.WithWeatherClient(wClient),
+	)
+	srv := wc.NewServer(app)
+
 	port := "9876"
 	if envPort := os.Getenv("PORT"); envPort != "" {
 		port = envPort
 	}
 
 	log.Printf("server starting on port: %s...", port)
-	if err := funcframework.Start(port); err != nil {
-		log.Fatalf("funcframework.Start: %v\n", err)
+	if err := http.ListenAndServe(":"+port, srv); err != nil {
+		log.Fatalf("http server: %s", err.Error())
 	}
 }
