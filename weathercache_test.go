@@ -35,7 +35,8 @@ func TestServer(t *testing.T) {
 
 		app := wc.New(wc.WithStore(memstore.New()), wc.WithWeatherClient(client))
 		srv := wc.NewServer(app)
-		app.PreFetch()
+		err := app.PreFetch()
+		require.NoError(t, err)
 
 		req := httptest.NewRequest("GET", "/", nil)
 		res := httptest.NewRecorder()
@@ -45,7 +46,7 @@ func TestServer(t *testing.T) {
 		require.Equal(t, "application/json", res.Header().Get("Content-Type"))
 
 		var got weather.Current
-		err := json.NewDecoder(res.Body).Decode(&got)
+		err = json.NewDecoder(res.Body).Decode(&got)
 		require.NoError(t, err)
 		require.NotEmpty(t, got)
 		require.Equal(t, 72.5, got.Main.Temp)
