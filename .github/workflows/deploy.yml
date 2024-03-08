@@ -38,7 +38,7 @@ jobs:
       - id: "auth"
         uses: "google-github-actions/auth@v2"
         with:
-          credentials_json: "${{ secrets.GCP_SA_CREDS_JSON }}"
+          workload_identity_provider: "${{ secrets.WIF_PROVIDER }}"
 
       - name: 🏗 App Version
         # Ex version: "20231213-commit-643ef27"
@@ -58,3 +58,4 @@ jobs:
           env_vars: |-
             PORT=8080
             OPEN_WEATHER_API_KEY=${{secrets.OPEN_WEATHER_API_KEY}}
+            USE_MEM_STORE=${{ vars.USE_MEM_STORE }}
