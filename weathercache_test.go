@@ -35,7 +35,7 @@ func TestServer(t *testing.T) {
 
 		app := wc.New(wc.WithStore(memstore.New()), wc.WithWeatherClient(client))
 		srv := wc.NewServer(app)
-		err := app.PreFetch()
+		err := app.PreFetch(nil)
 		require.NoError(t, err)
 
 		req := httptest.NewRequest("GET", "/", nil)

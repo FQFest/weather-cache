@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -32,7 +36,7 @@ func main() {
 	)
 
 	if useMemStore {
-		if err := app.PreFetch(); err != nil {
+		if err := app.PreFetch(mockData()); err != nil {
 			log.Fatalf("app.PreFetch: %s", err.Error())
 		}
 	}
@@ -46,4 +50,28 @@ func main() {
 	if err := http.ListenAndServe(":"+port, wc.NewServer(app)); err != nil {
 		log.Fatalf("http server: %s", err.Error())
 	}
+}
+
+// mockData returns a mock weather data for testing if USE_MOCK_DATA is true.
+func mockData() io.Reader {
+	if os.Getenv("USE_MOCK_DATA") != "true" {
+		return nil
+	}
+
+	fmt.Println("using mock data")
+	weather := weather.Current{
+		Main: weather.Main{
+			Temp:      504.0,
+			FeelsLike: 78.8,
+			TempMin:   77,
+			TempMax:   550,
+		},
+		Base: "stations",
+	}
+
+	data, err := json.Marshal(weather)
+	if err != nil {
+		panic(err)
+	}
+	return bytes.NewReader(data)
 }
