@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 )
@@ -82,6 +83,7 @@ func New() *client {
 
 // Fetch fetches the current weather from the OpenWeather API.
 func (c *client) Fetch(ctx context.Context) (io.ReadCloser, error) {
+	log.Print("fetching current weather...\n")
 
 	endpoint := c.apiBase + "/weather"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)

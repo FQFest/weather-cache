@@ -67,18 +67,30 @@ func NewServer(app *App) http.Handler {
 }
 
 // PreFetch triggers the initial fetch of weather data.
-func (a App) PreFetch() error {
-	// Trigger weather update
-	curWeatherRdr, err := a.weatherClient.Fetch(context.Background())
-	if err != nil {
-		return fmt.Errorf("weatherClient.Fetch: %w", err)
-	}
-	defer curWeatherRdr.Close()
+// If mockData is not nil, it will be used to update the weather data, bypassing the actual fetch.
+func (a App) PreFetch(mockData io.Reader) error {
+	var data []byte
 
-	data, err := io.ReadAll(curWeatherRdr)
-	if err != nil {
-		return fmt.Errorf("weather readAll: %w", err)
+	if mockData != nil {
+		var err error
+		data, err = io.ReadAll(mockData)
+		if err != nil {
+			return fmt.Errorf("mockData readAll: %w", err)
+		}
+	} else {
+		// Trigger weather update
+		curWeatherRdr, err := a.weatherClient.Fetch(context.Background())
+		if err != nil {
+			return fmt.Errorf("weatherClient.Fetch: %w", err)
+		}
+		defer curWeatherRdr.Close()
+
+		data, err = io.ReadAll(curWeatherRdr)
+		if err != nil {
+			return fmt.Errorf("weather readAll: %w", err)
+		}
 	}
+
 	if err := a.store.UpdateWeather(context.Background(), string(data)); err != nil {
 		return fmt.Errorf("store.UpdateWeather: %w", err)
 	}
