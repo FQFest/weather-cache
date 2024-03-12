@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/FQFest/weathercache/firestore"
 	"github.com/FQFest/weathercache/memstore"
@@ -18,6 +19,8 @@ type (
 		log           *log.Logger
 		store         store
 		weatherClient fetcher
+		poll          *time.Ticker
+		mockData      []byte
 	}
 
 	fetcher interface {
@@ -44,6 +47,12 @@ func WithWeatherClient(w fetcher) Option {
 	}
 }
 
+func WithMockData(data []byte) Option {
+	return func(a *App) {
+		a.mockData = data
+	}
+}
+
 // New creates a new App instance.
 func New(opts ...Option) *App {
 	app := &App{}
@@ -67,7 +76,14 @@ func NewServer(app *App) http.Handler {
 }
 
 // PreFetch triggers the initial fetch of weather data.
+// If mockData is not nil, it will be used to update the weather data, bypassing the actual fetch.
 func (a App) PreFetch() error {
+	a.log.Println("Pre-fetching weather data...")
+
+	if a.mockData != nil {
+		return a.store.UpdateWeather(context.Background(), string(a.mockData))
+	}
+
 	// Trigger weather update
 	curWeatherRdr, err := a.weatherClient.Fetch(context.Background())
 	if err != nil {
@@ -79,6 +95,7 @@ func (a App) PreFetch() error {
 	if err != nil {
 		return fmt.Errorf("weather readAll: %w", err)
 	}
+
 	if err := a.store.UpdateWeather(context.Background(), string(data)); err != nil {
 		return fmt.Errorf("store.UpdateWeather: %w", err)
 	}
@@ -99,24 +116,52 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// StartPoll starts the polling loop to update the weather data.
+func (a *App) StartPoll(d time.Duration) {
+	a.poll = time.NewTicker(d)
+	go func() {
+		for range a.poll.C {
+			a.log.Println("Polling for new weather data...")
+			if err := a.updateWeather(context.Background()); err != nil {
+				a.log.Printf("weather poll: %s", err.Error())
+			}
+		}
+	}()
+}
+
+// StopPoll stops the weather polling loop.
+func (a *App) StopPoll() {
+	a.log.Println("Stopping weather polling...")
+	if a.poll != nil {
+		a.poll.Stop()
+	}
+}
+
+// updateWeather fetches the current weather and updates the store.
+func (a *App) updateWeather(ctx context.Context) error {
+	if a.mockData != nil {
+		return a.store.UpdateWeather(ctx, string(a.mockData))
+	}
+
+	curWeatherRdr, err := a.weatherClient.Fetch(ctx)
+	if err != nil {
+		return fmt.Errorf("weatherClient.Fetch: %w", err)
+	}
+	defer curWeatherRdr.Close()
+	data, err := io.ReadAll(curWeatherRdr)
+	if err != nil {
+		return fmt.Errorf("weather readAll: %w", err)
+
+	}
+	if err := a.store.UpdateWeather(ctx, string(data)); err != nil {
+		return fmt.Errorf("updateWeather: %w", err)
+	}
+	return nil
+}
+
 func (a *App) handleUpdateWeather() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		curWeatherRdr, err := a.weatherClient.Fetch(r.Context())
-		if err != nil {
-			a.log.Printf("error: %s", err.Error())
-			http.Error(w, "could not fetch weather data", http.StatusInternalServerError)
-			return
-		}
-		defer curWeatherRdr.Close()
-
-		data, err := io.ReadAll(curWeatherRdr)
-		if err != nil {
-			a.log.Printf("weather readAll: %s", err.Error())
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-		if err := a.store.UpdateWeather(r.Context(), string(data)); err != nil {
+		if err := a.updateWeather(r.Context()); err != nil {
 			a.log.Printf("updateWeather: %s", err.Error())
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
