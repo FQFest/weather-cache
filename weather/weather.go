@@ -111,9 +111,5 @@ func (c *client) Fetch(ctx context.Context) (io.ReadCloser, error) {
 		return resp.Body, fmt.Errorf("could not get current weather\nStatusCode: %d\nBody: %s", resp.StatusCode, string(body))
 	}
 
-	if err != nil {
-		return resp.Body, err
-	}
-
 	return resp.Body, nil
 }

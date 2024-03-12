@@ -1,14 +1,16 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
 
 	wc "github.com/FQFest/weathercache"
 	"github.com/FQFest/weathercache/firestore"
@@ -33,10 +35,24 @@ func main() {
 	app := wc.New(
 		storeOption,
 		wc.WithWeatherClient(wClient),
+		wc.WithMockData(mockData()),
 	)
 
+	rawSec := os.Getenv("POLL_INTERVAL_SECS")
+	sec, err := strconv.Atoi(rawSec)
+	if err != nil && rawSec != "" {
+		log.Fatalf("POLL_INTERVAL_SECS must be an integer.\nGot: %s", rawSec)
+	}
+
+	if sec < 1 {
+		// Default to 2 minutes.
+		app.StartPoll(time.Minute * 2)
+	} else {
+		app.StartPoll(time.Duration(sec) * time.Second)
+	}
+
 	if useMemStore {
-		if err := app.PreFetch(mockData()); err != nil {
+		if err := app.PreFetch(); err != nil {
 			log.Fatalf("app.PreFetch: %s", err.Error())
 		}
 	}
@@ -46,14 +62,49 @@ func main() {
 		port = envPort
 	}
 
-	log.Printf("server starting on port: %s...", port)
-	if err := http.ListenAndServe(":"+port, wc.NewServer(app)); err != nil {
-		log.Fatalf("http server: %s", err.Error())
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           wc.NewServer(app),
+		IdleTimeout:       10 * time.Second,
+		ReadHeaderTimeout: 15 * time.Second,
+	}
+	srvErrs := make(chan error, 1)
+	go func() {
+		log.Printf("server starting on port: %s...", port)
+		srvErrs <- srv.ListenAndServe()
+	}()
+
+	// Wait for errors from the server or for a signal to shutdown.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	shutdown := gracefulShutdown(app, srv)
+
+	select {
+	case err := <-srvErrs:
+		shutdown(err)
+	case sig := <-quit:
+		shutdown(sig)
+	}
+	log.Println("server shutdown")
+}
+
+func gracefulShutdown(app *wc.App, srv *http.Server) func(reason interface{}) {
+	return func(reason interface{}) {
+		log.Printf("shutting down server: %v", reason)
+		shutdownTimeout := 3 * time.Second
+		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+
+		app.StopPoll()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Fatalf("srv.Shutdown: %s", err.Error())
+		}
 	}
 }
 
 // mockData returns a mock weather data for testing if USE_MOCK_DATA is true.
-func mockData() io.Reader {
+func mockData() []byte {
 	if os.Getenv("USE_MOCK_DATA") != "true" {
 		return nil
 	}
@@ -73,5 +124,5 @@ func mockData() io.Reader {
 	if err != nil {
 		panic(err)
 	}
-	return bytes.NewReader(data)
+	return data
 }
